@@ -2774,6 +2774,7 @@ else:
             "T5_PRETRAINED_MODEL_ARCHIVE_LIST",
             "T5EncoderModel",
             "T5ForConditionalGeneration",
+            "T5ForConditionalGenerationGen2",
             "T5ForQuestionAnswering",
             "T5ForSequenceClassification",
             "T5Model",
