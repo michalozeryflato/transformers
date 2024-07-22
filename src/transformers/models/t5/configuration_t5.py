@@ -103,7 +103,7 @@ class T5Config(PretrainedConfig):
         classifier_dropout=0.0,
         position_embedding_definitions=None,
         memory_efficient_attention: Optional[str]=None,
-        support_scalars_inputs: bool = False,
+        support_scalars: bool = False,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -144,7 +144,7 @@ class T5Config(PretrainedConfig):
             #this configuration mimics the default T5 relative positional encoding behavior
             self.position_embedding_definitions = dict(default=dict(type='t5_default_relative', config=None))            
         self.memory_efficient_attention = memory_efficient_attention
-        self.support_scalars_inputs = support_scalars_inputs
+        self.support_scalars = support_scalars
 
         super().__init__(
             pad_token_id=pad_token_id,

@@ -1315,9 +1315,10 @@ class T5Stack(T5PreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
             if self.project_scalars is not None:
-                assert not ((encoder_input_scalars_indices is not None) ^ (encoder_input_scalars_values is not None)) #must be neither or both 
                 for sample_idx, (_curr_scalar_ind, _curr_scalar_vals) in enumerate(zip(encoder_input_scalars_indices, encoder_input_scalars_values)):
-                    inputs_embeds[sample_idx][_curr_scalar_ind] += self.project_scalars(_curr_scalar_vals[..., None])
+                    assert not ((_curr_scalar_ind is not None) ^ (_curr_scalar_vals is not None)) #must be neither or both
+                    if _curr_scalar_ind is not None:
+                        inputs_embeds[sample_idx][_curr_scalar_ind] += self.project_scalars(_curr_scalar_vals[..., None])
                 
 
         if position_ids_dict is None:
@@ -1899,7 +1900,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         self.model_dim = config.d_model
 
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
-        if config.support_scalars_inputs:
+        if config.support_scalars:
             self.project_input_scalars = nn.Linear(1, config.d_model, bias=True) #bias?
                 
         encoder_config = copy.deepcopy(config)
@@ -2134,6 +2135,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
 
         lm_logits = self.lm_head(sequence_output)
 
+        #import ipdb;ipdb.set_trace()
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-100)
