@@ -1317,7 +1317,7 @@ class T5Stack(T5PreTrainedModel):
             if self.project_scalars is not None:
                 for sample_idx, (_curr_scalar_ind, _curr_scalar_vals) in enumerate(zip(encoder_input_scalars_indices, encoder_input_scalars_values)):
                     assert not ((_curr_scalar_ind is not None) ^ (_curr_scalar_vals is not None)) #must be neither or both
-                    if _curr_scalar_ind is not None:
+                    if (_curr_scalar_ind is not None) and (_curr_scalar_ind.shape[0] > 0):
                         inputs_embeds[sample_idx][_curr_scalar_ind] += self.project_scalars(_curr_scalar_vals[..., None])
                 
 
