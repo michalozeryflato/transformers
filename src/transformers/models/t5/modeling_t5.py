@@ -1901,7 +1901,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         self.model_dim = config.d_model
 
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
-        if config.support_scalars:
+        if hasattr(config, 'support_scalars') and config.support_scalars:
             self.project_input_scalars = nn.Linear(1, config.d_model, bias=True) #bias?
         else:
             self.project_input_scalars = None
