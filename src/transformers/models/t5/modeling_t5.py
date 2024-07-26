@@ -1315,7 +1315,7 @@ class T5Stack(T5PreTrainedModel):
                 raise ValueError("You have to initialize the model with valid token embeddings")
             inputs_embeds = self.embed_tokens(input_ids)
 
-            if (self.project_scalars is not None) and (encoder_input_scalars_indices is not None) and (encoder_input_scalars_values is not None)):
+            if (self.project_scalars is not None) and (encoder_input_scalars_indices is not None) and (encoder_input_scalars_values is not None):
                 for sample_idx, (_curr_scalar_ind, _curr_scalar_vals) in enumerate(zip(encoder_input_scalars_indices, encoder_input_scalars_values)):
                     assert not ((_curr_scalar_ind is not None) ^ (_curr_scalar_vals is not None)) #must be neither or both
                     if (_curr_scalar_ind is not None) and (_curr_scalar_ind.shape[0] > 0):
