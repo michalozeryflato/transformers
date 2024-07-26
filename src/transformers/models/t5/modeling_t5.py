@@ -1280,8 +1280,8 @@ class T5Stack(T5PreTrainedModel):
         output_hidden_states=None,
         return_dict=None,
         position_ids_dict='default', #None here means the user wants NO pos embedding of any kind.  'default' has the default T5 behavior
-        encoder_input_scalars_indices: Optional[torch.LongTensor] = None,
-        encoder_input_scalars_values: Optional[torch.FloatTensor] = None,
+        encoder_input_scalars_indices: Optional[List[Optional[torch.LongTensor]]] = None,
+        encoder_input_scalars_values: Optional[List[Optional[torch.FloatTensor]]] = None,
     ):
         if position_ids_dict == 'default':
             position_ids_dict = {'default': (None, ["default"])} 
@@ -1315,7 +1315,7 @@ class T5Stack(T5PreTrainedModel):
                 raise ValueError("You have to initialize the model with valid token embeddings")
             inputs_embeds = self.embed_tokens(input_ids)
 
-            if self.project_scalars is not None:
+            if (self.project_scalars is not None) and (encoder_input_scalars_indices is not None) and (encoder_input_scalars_values is not None)):
                 for sample_idx, (_curr_scalar_ind, _curr_scalar_vals) in enumerate(zip(encoder_input_scalars_indices, encoder_input_scalars_values)):
                     assert not ((_curr_scalar_ind is not None) ^ (_curr_scalar_vals is not None)) #must be neither or both
                     if (_curr_scalar_ind is not None) and (_curr_scalar_ind.shape[0] > 0):
@@ -2003,8 +2003,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         return_dict: Optional[bool] = None,
         encoder_position_ids_dict: Optional[Dict[str, Tuple[torch.LongTensor,str]]] = None,  # shape of each LongTensor (num_batches, n_input_tokens)
         decoder_position_ids_dict: Optional[Dict[str, Tuple[torch.LongTensor,str]]] = None, # shape of each LongTensor (num_batches, n_input_tokens)
-        encoder_input_scalars_indices: Optional[torch.LongTensor] = None,
-        encoder_input_scalars_values: Optional[torch.FloatTensor] = None,
+        encoder_input_scalars_indices: Optional[List[Optional[torch.LongTensor]]] = None,
+        encoder_input_scalars_values: Optional[List[Optional[torch.FloatTensor]]] = None,
     ) -> Union[Tuple[torch.FloatTensor], Seq2SeqLMOutput]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -2136,7 +2136,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
 
         lm_logits = self.lm_head(sequence_output)
 
-        #import ipdb;ipdb.set_trace()
+        
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-100)
