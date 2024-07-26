@@ -1170,11 +1170,12 @@ class T5PreTrainedModel(PreTrainedModel):
 
 
 class T5Stack(T5PreTrainedModel):
-    def __init__(self, config, embed_tokens=None):
+    def __init__(self, config, embed_tokens=None, project_scalars=None):
         super().__init__(config)
 
-        self.embed_tokens = embed_tokens
+        self.embed_tokens = embed_tokens        
         self.is_decoder = config.is_decoder
+        self.project_scalars = project_scalars if not config.is_decoder else None
         self.position_embedding_definitions = config.position_embedding_definitions if hasattr(config, "position_embedding_definitions") else dict(default=dict(type='t5_default_relative', config=None))
 
         self.attention_injected_in_t5_stack_level = nn.ModuleDict()
@@ -1237,6 +1238,7 @@ class T5Stack(T5PreTrainedModel):
 
         # Set embed_tokens to first layer
         self.embed_tokens = self.embed_tokens.to(self.first_device)
+        assert False, "did not add support for self.project_scalars here, the entire method seems deprecated"
         # Set final layer norm to last device
         self.final_layer_norm = self.final_layer_norm.to(self.last_device)
 
@@ -1253,6 +1255,7 @@ class T5Stack(T5PreTrainedModel):
         for i in range(len(self.block)):
             self.block[i] = self.block[i].to("cpu")
         self.embed_tokens = self.embed_tokens.to("cpu")
+        assert False, "did not add support for self.project_scalars here, the entire method seems deprecated"
         self.final_layer_norm = self.final_layer_norm.to("cpu")
         torch.cuda.empty_cache()
 
@@ -1277,6 +1280,8 @@ class T5Stack(T5PreTrainedModel):
         output_hidden_states=None,
         return_dict=None,
         position_ids_dict='default', #None here means the user wants NO pos embedding of any kind.  'default' has the default T5 behavior
+        encoder_input_scalars_indices: Optional[List[Optional[torch.LongTensor]]] = None,
+        encoder_input_scalars_values: Optional[List[Optional[torch.FloatTensor]]] = None,
     ):
         if position_ids_dict == 'default':
             position_ids_dict = {'default': (None, ["default"])} 
@@ -1309,6 +1314,13 @@ class T5Stack(T5PreTrainedModel):
             if self.embed_tokens is None:
                 raise ValueError("You have to initialize the model with valid token embeddings")
             inputs_embeds = self.embed_tokens(input_ids)
+
+            if (self.project_scalars is not None) and (encoder_input_scalars_indices is not None) and (encoder_input_scalars_values is not None)):
+                for sample_idx, (_curr_scalar_ind, _curr_scalar_vals) in enumerate(zip(encoder_input_scalars_indices, encoder_input_scalars_values)):
+                    assert not ((_curr_scalar_ind is not None) ^ (_curr_scalar_vals is not None)) #must be neither or both
+                    if (_curr_scalar_ind is not None) and (_curr_scalar_ind.shape[0] > 0):
+                        inputs_embeds[sample_idx][_curr_scalar_ind] += self.project_scalars(_curr_scalar_vals[..., None])
+                
 
         if position_ids_dict is None:
             position_ids_dict = {}
@@ -1889,12 +1901,14 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         self.model_dim = config.d_model
 
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
+        if config.support_scalars:
+            self.project_input_scalars = nn.Linear(1, config.d_model, bias=True) #bias?
                 
         encoder_config = copy.deepcopy(config)
         encoder_config.is_decoder = False
         encoder_config.use_cache = False
         encoder_config.is_encoder_decoder = False
-        self.encoder = T5Stack(encoder_config, self.shared)
+        self.encoder = T5Stack(encoder_config, self.shared, project_scalars = self.project_input_scalars)
 
         decoder_config = copy.deepcopy(config)
         decoder_config.is_decoder = True
@@ -1989,6 +2003,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         return_dict: Optional[bool] = None,
         encoder_position_ids_dict: Optional[Dict[str, Tuple[torch.LongTensor,str]]] = None,  # shape of each LongTensor (num_batches, n_input_tokens)
         decoder_position_ids_dict: Optional[Dict[str, Tuple[torch.LongTensor,str]]] = None, # shape of each LongTensor (num_batches, n_input_tokens)
+        encoder_input_scalars_indices: Optional[List[Optional[torch.LongTensor]]] = None,
+        encoder_input_scalars_values: Optional[List[Optional[torch.FloatTensor]]] = None,
     ) -> Union[Tuple[torch.FloatTensor], Seq2SeqLMOutput]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -2058,6 +2074,8 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
                 position_ids_dict=encoder_position_ids_dict,
+                encoder_input_scalars_indices = encoder_input_scalars_indices,
+                encoder_input_scalars_values = encoder_input_scalars_values,
             )
         elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
             encoder_outputs = BaseModelOutput(
@@ -2118,6 +2136,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
 
         lm_logits = self.lm_head(sequence_output)
 
+        
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-100)
@@ -2207,7 +2226,6 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
 
             reordered_decoder_past = reordered_decoder_past + (reordered_layer_past_states,)
         return reordered_decoder_past
-
 
 @add_start_docstrings(
     "The bare T5 Model transformer outputting encoder's raw hidden-states without any specific head on top.",
