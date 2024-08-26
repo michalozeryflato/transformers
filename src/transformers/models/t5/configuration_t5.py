@@ -103,6 +103,7 @@ class T5Config(PretrainedConfig):
         classifier_dropout=0.0,
         position_embedding_definitions=None,
         memory_efficient_attention: Optional[str]=None,
+        attention_scale: Optional[float] = None, 
         support_scalars: bool = False,
         **kwargs,
     ):
@@ -144,6 +145,7 @@ class T5Config(PretrainedConfig):
             #this configuration mimics the default T5 relative positional encoding behavior
             self.position_embedding_definitions = dict(default=dict(type='t5_default_relative', config=None))            
         self.memory_efficient_attention = memory_efficient_attention
+        self.attention_scale = attention_scale
         self.support_scalars = support_scalars
 
         super().__init__(

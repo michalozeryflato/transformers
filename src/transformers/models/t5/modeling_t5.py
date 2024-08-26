@@ -512,11 +512,11 @@ class T5Attention(nn.Module):
         self.pruned_heads = set()
         self.gradient_checkpointing = False
         self.memory_efficient_attention = config.memory_efficient_attention if hasattr(config, "memory_efficient_attention") else None
-        #self.memory_efficient_attention = True
-        #print('DEBUG DEBUG DEBUG! FORCING self.memory_efficient_attention=True for debugging !!!')
 
         self.cross_attention = cross_attention
-        self.scale = None
+        self.scale = config.attention_scale if hasattr(config, "attention_scale") else None
+        if self.scale is not None:
+            assert self.memory_efficient_attention is not None, "attention_scale can only be used with memory_efficient_attention"
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -808,8 +808,8 @@ class T5Attention(nn.Module):
         
         elif self.memory_efficient_attention in ["torch_scaled_dot_product_attention", "torch_scaled_dot_product_attention_force_flash", "torch_scaled_dot_product_attention_without_position_bias"]:
             scale = 1 / math.sqrt(K) if self.scale == None else self.scale
-            is_causal = self.is_decoder and not self.cross_attention
             if self.memory_efficient_attention in ["torch_scaled_dot_product_attention_force_flash", "torch_scaled_dot_product_attention_without_position_bias"]:
+                is_causal = self.is_decoder and not self.cross_attention
                 with torch.backends.cuda.sdp_kernel(
                     enable_flash=True, 
                     enable_math=self.memory_efficient_attention != "torch_scaled_dot_product_attention_force_flash",
@@ -817,7 +817,7 @@ class T5Attention(nn.Module):
                 ):
                     attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=None, dropout_p=self.dropout, is_causal=is_causal, scale=scale)
             else:
-                attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=add_to_scores, dropout_p=self.dropout, is_causal=is_causal, scale=scale)
+                attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=add_to_scores, dropout_p=self.dropout, is_causal=False, scale=scale)
 
             attn_output = self.unshape(attn_output, batch_size=batch_size, inner_dim=self.inner_dim)  # (batch_size, seq_length, dim)
             
@@ -1191,7 +1191,7 @@ class T5Stack(T5PreTrainedModel):
             elif embedding_type == POSITION_EMBEDDING_LEARNED:
                 self.attention_injected_in_t5_stack_level[position_embedding_name] =  nn.Embedding(embedding_config.num_embeddings, config.d_model)
             elif embedding_type in SUPPORTED_POS_ENC_TYPES_INJECTED_IN_ATTENTION:
-                    injected_in_attention[position_embedding_name] = embedding_info
+                injected_in_attention[position_embedding_name] = embedding_info
             else:
                 raise Exception(f'unfamiliar positional embedding type "{embedding_type}" supported options are {SUPPORTED_POS_ENC_TYPES}')
         if len(injected_in_attention) == 0:
