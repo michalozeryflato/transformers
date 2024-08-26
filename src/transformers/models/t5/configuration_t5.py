@@ -103,10 +103,20 @@ class T5Config(PretrainedConfig):
         classifier_dropout=0.0,
         position_embedding_definitions=None,
         memory_efficient_attention: Optional[str]=None,
-        attention_scale: Optional[float] = None, 
+        attention_scale: Optional[float]=None,
         support_scalars: bool = False,
         **kwargs,
     ):
+        """
+        :param memory_efficient_attention: None will use the default t5 attention mechanism. 
+                                           Supported options: 
+                                           (1) None
+                                           (2) "torch_scaled_dot_product_attention"
+                                           (3) "torch_scaled_dot_product_attention_force_flash"
+                                           (4) "torch_scaled_dot_product_attention_without_position_bias"
+        :param attention_scale: None will set the scaling to '1/sqrt(K)' when using using memory efficient attention
+
+        """
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.d_kv = d_kv
