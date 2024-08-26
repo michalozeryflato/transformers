@@ -515,7 +515,7 @@ class T5Attention(nn.Module):
 
         self.cross_attention = cross_attention
         self.scale = config.attention_scale if hasattr(config, "attention_scale") else None
-        if self.scale is not None:
+        if self.scale is not None and self.scale != 1.0:
             assert self.memory_efficient_attention is not None, "attention_scale can only be used with memory_efficient_attention"
 
     def prune_heads(self, heads):
