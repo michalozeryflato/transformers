@@ -807,6 +807,7 @@ class T5Attention(nn.Module):
             attn_output = self.unshape(torch.matmul(attn_weights, value_states), batch_size=batch_size, inner_dim=self.inner_dim)  # (batch_size, seq_length, dim)
         
         elif self.memory_efficient_attention in ["torch_scaled_dot_product_attention", "torch_scaled_dot_product_attention_force_flash", "torch_scaled_dot_product_attention_without_position_bias"]:
+            dropout_p = self.dropout if self.training else 0
             scale = 1 / math.sqrt(K) if self.scale == None else self.scale
             if self.memory_efficient_attention in ["torch_scaled_dot_product_attention_force_flash", "torch_scaled_dot_product_attention_without_position_bias"]:
                 is_causal = self.is_decoder and not self.cross_attention
@@ -815,9 +816,9 @@ class T5Attention(nn.Module):
                     enable_math=self.memory_efficient_attention != "torch_scaled_dot_product_attention_force_flash",
                     enable_mem_efficient=self.memory_efficient_attention != "torch_scaled_dot_product_attention_force_flash",
                 ):
-                    attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=None, dropout_p=self.dropout, is_causal=is_causal, scale=scale)
+                    attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=None, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
             else:
-                attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=add_to_scores, dropout_p=self.dropout, is_causal=False, scale=scale)
+                attn_output = F.scaled_dot_product_attention(query_states, key_states, value_states, attn_mask=add_to_scores, dropout_p=dropout_p, is_causal=False, scale=scale)
 
             attn_output = self.unshape(attn_output, batch_size=batch_size, inner_dim=self.inner_dim)  # (batch_size, seq_length, dim)
             
